@@ -3,9 +3,11 @@ library(ggplot2)
 library(dplyr)
 library(sf)
 library(stringr)
+#中国地图
 df <- read.csv("MyEBirdData.csv")
 states <- ebird_states %>%
   filter(country %in% c("China", "Taiwan"))
+taxa <- auk::ebird_taxonomy
 
 df.se <- df %>%
   filter(State.Province %in% states$state_code) %>%
@@ -38,4 +40,11 @@ ggplot() +
   labs(fill=NULL)+
   theme_minimal()+
   theme(element_text(family = "STHeiti"))
+
+#世界地图
+library(rnaturalearth)
+library(rnaturalearthdata)
+
+df.se1 <- df %>%
+  mutate()
 
