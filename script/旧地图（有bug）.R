@@ -24,15 +24,15 @@ df.se <- left_join(df.se, states) %>%
   mutate(PINYIN_NAM = if_else(PINYIN_NAM == "Gansu", "gansu", PINYIN_NAM)) %>%
   mutate(PINYIN_NAM = if_else(PINYIN_NAM == "Yilan County", "Taiwan", PINYIN_NAM)) 
 
-map <- st_read("/Users/tangerine/Documents/中国标准地图-审图号GS(2020)4619号-shp格式/省级行政区.shp")
+map <- st_read("shapefile/省级行政区.shp")
 map <- st_drop_geometry(map) %>%
   select(PINYIN_NAM, NAME)
 map.se <- left_join(map, df.se) %>%
   mutate(CNAME=NAME)
 
-maptest <- st_read("/Users/tangerine/Downloads/china_basemap_Lambert-master/china_map/中国省级地图GS（2019）1719号.geojson")
+maptest <- st_read("shapefile/china_map/中国省级地图GS（2019）1719号.geojson")
 maptest$CNAME <- str_sub(maptest$CNAME, 1,3)
-jdx <- st_read("/Users/tangerine/Downloads/china_basemap_Lambert-master/china_map/九段线GS（2019）1719号.geojson")
+jdx <- st_read("shapefile/china_map/九段线GS（2019）1719号.geojson")
 library(fuzzyjoin)
 maptest.se <- stringdist_left_join(maptest, map.se, by = 'CNAME',  method="lcs", max_dist=2.9) %>%
   select(species, geometry, NAME)

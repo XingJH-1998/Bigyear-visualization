@@ -1,3 +1,7 @@
+#library()
+
+df <- read.csv("MyEBirdData.csv")
+subid <- readRDS("matched_submissionID.rda")
 EXCLUDE_OBSERVERS <- c("Big Year", "Anonymous eBirder")
 
 # —— 1) 回并并筛选到物种级 —— 
@@ -112,5 +116,5 @@ p4 <- ggplot(top_countries, aes(x = reorder(Observers, n_countries), y = n_count
   theme_minimal()
 
 # 组合展示（2x2）
-ggarrange(p1, p2, p3, p4, ncol = 2, nrow = 2)
+ggpubr::ggarrange(p1, p2, p3, p4, ncol = 2, nrow = 2)
 
