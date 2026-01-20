@@ -15,10 +15,10 @@ system_name = platform.system()
 if system_name == "Darwin":  # macOS (你的本地电脑)
     # macOS 优先使用系统自带的 "Arial Unicode MS" 或 "PingFang SC"
     plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'PingFang SC', 'Heiti TC', 'sans-serif']
-elif system_name == "Linux": # GitHub Actions (服务器)
+elif system_name == "Linux":  # GitHub Actions (服务器)
     # Ubuntu 服务器优先使用 Noto Sans CJK
     plt.rcParams['font.sans-serif'] = ['Noto Sans CJK JP', 'Noto Sans CJK SC', 'WenQuanYi Micro Hei', 'sans-serif']
-else: # Windows
+else:  # Windows
     plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'sans-serif']
 
 # 解决负号显示为方块的问题
@@ -35,9 +35,9 @@ try:
 
     # 【新增代码】模拟 R 的列名处理：把空格和斜杠变成点
     df.columns = df.columns.str.replace(' ', '.').str.replace('/', '.')
-    
+
     # 打印一下列名，确保改对了（调试用）
-    print("Columns:", df.columns.tolist()) 
+    print("Columns:", df.columns.tolist())
 
     # 读取地理数据
     map_geo = gpd.read_file("shapefile/china_map/中国省级地图GS（2019）1719号.geojson")
@@ -59,11 +59,13 @@ df = pd.merge(df, ebird_taxonomy, left_on="Scientific.Name", right_on="SCI_NAME"
 # 为了复刻 R 的逻辑，我们需要先建立一个映射字典
 code_to_sciname = dict(zip(ebird_taxonomy['SPECIES_CODE'], ebird_taxonomy['SCI_NAME']))
 
+
 def correct_name(row):
     report_as = row['REPORT_AS']
     if pd.notna(report_as) and report_as in code_to_sciname:
         return code_to_sciname[report_as]
     return row['Scientific.Name']
+
 
 df['Scientific.Name'] = df.apply(correct_name, axis=1)
 
@@ -74,24 +76,26 @@ df = df[df['CATEGORY'].isin(valid_categories)]
 # 处理省份和地区代码
 df['Country_code'] = df['State.Province'].str.slice(0, 2)
 
+
 def clean_province(prov):
     if str(prov).startswith("HK-"): return "HK"
     if str(prov).startswith("TW-"): return "TW"
     if str(prov).startswith("MO-"): return "MO"
     return prov
 
+
 df['State.Province'] = df['State.Province'].apply(clean_province)
 
 # 省份映射字典
 prov_dict = {
-  "CN-11": "北京市","CN-12": "天津市","CN-13": "河北省","CN-14": "山西省","CN-15": "内蒙古自治区",
-  "CN-21": "辽宁省","CN-22": "吉林省","CN-23": "黑龙江省","CN-31": "上海市","CN-32": "江苏省",
-  "CN-33": "浙江省","CN-34": "安徽省","CN-35": "福建省","CN-36": "江西省","CN-37": "山东省",
-  "CN-41": "河南省","CN-42": "湖北省","CN-43": "湖南省","CN-44": "广东省","CN-45": "广西壮族自治区",
-  "CN-46": "海南省","CN-50": "重庆市","CN-51": "四川省","CN-52": "贵州省","CN-53": "云南省",
-  "CN-54": "西藏自治区","CN-61": "陕西省","CN-62": "甘肃省","CN-63": "青海省","CN-64": "宁夏回族自治区",
-  "CN-65": "新疆维吾尔自治区",
-  "TW": "台湾省","HK": "香港特别行政区","MO": "澳门特别行政区"
+    "CN-11": "北京市", "CN-12": "天津市", "CN-13": "河北省", "CN-14": "山西省", "CN-15": "内蒙古自治区",
+    "CN-21": "辽宁省", "CN-22": "吉林省", "CN-23": "黑龙江省", "CN-31": "上海市", "CN-32": "江苏省",
+    "CN-33": "浙江省", "CN-34": "安徽省", "CN-35": "福建省", "CN-36": "江西省", "CN-37": "山东省",
+    "CN-41": "河南省", "CN-42": "湖北省", "CN-43": "湖南省", "CN-44": "广东省", "CN-45": "广西壮族自治区",
+    "CN-46": "海南省", "CN-50": "重庆市", "CN-51": "四川省", "CN-52": "贵州省", "CN-53": "云南省",
+    "CN-54": "西藏自治区", "CN-61": "陕西省", "CN-62": "甘肃省", "CN-63": "青海省", "CN-64": "宁夏回族自治区",
+    "CN-65": "新疆维吾尔自治区",
+    "TW": "台湾省", "HK": "香港特别行政区", "MO": "澳门特别行政区"
 }
 
 # ==========================================
@@ -121,7 +125,7 @@ jdx.plot(ax=ax1, linewidth=0.5, color="black", zorder=2)
 colors = ["#FFFFFF", "#ADD8E6", "#4169E1"]
 cmap = mcolors.LinearSegmentedColormap.from_list("custom_blue", colors)
 
-map_data.plot(column='n_species', ax=ax1, cmap=cmap, 
+map_data.plot(column='n_species', ax=ax1, cmap=cmap,
               edgecolor='grey', linewidth=0.3, legend=True,
               legend_kwds={'label': "鸟种数", 'orientation': "horizontal", 'shrink': 0.6})
 
@@ -131,7 +135,7 @@ for idx, row in map_data.iterrows():
     if row['n_species'] > 0:
         # 获取几何中心用于放置文字
         centroid = row.geometry.centroid
-        ax1.text(centroid.x, centroid.y, str(int(row['n_species'])), 
+        ax1.text(centroid.x, centroid.y, str(int(row['n_species'])),
                  fontsize=8, ha='center', va='center', color='black')
 
 ax1.set_title("中国鸟种数", fontsize=16, fontweight='bold')
@@ -162,7 +166,7 @@ world.columns = world.columns.str.lower()
 # 逻辑：在统计之前，把 TW, HK, MO 的代码全部改成 CN
 # 这样 groupby 统计时，会自动把这些地区的鸟种合并，且去除重复
 # -----------------------------------------------------------
-df_for_world = df.copy() # 创建副本，不影响前面的中国分省地图
+df_for_world = df.copy()  # 创建副本，不影响前面的中国分省地图
 
 # 将 台湾(TW), 香港(HK), 澳门(MO) 的代码全部统一为 CN
 target_areas = ['TW', 'HK', 'MO']
@@ -172,7 +176,7 @@ df_for_world.loc[df_for_world['Country_code'].isin(target_areas), 'Country_code'
 df_world = df_for_world.groupby('Country_code')['Scientific.Name'].nunique().reset_index()
 df_world.columns = ['iso_a2', 'n_species']
 
-#print("CN (含港澳台) 总种数:", df_world[df_world['iso_a2'] == 'CN']['n_species'].values)
+# print("CN (含港澳台) 总种数:", df_world[df_world['iso_a2'] == 'CN']['n_species'].values)
 
 
 # -----------------------------------------------------------
@@ -190,7 +194,7 @@ iso_mapping = {
     'CHN': 'CN',  # 中国大陆 -> 读 CN 的数据
     'TWN': 'CN',  # 台湾 -> 读 CN 的数据 (关键修改！)
     'HKG': 'CN',  # 香港 -> 读 CN 的数据
-    'MAC': 'CN'   # 澳门 -> 读 CN 的数据
+    'MAC': 'CN'  # 澳门 -> 读 CN 的数据
 }
 
 # 3. 应用映射
@@ -201,7 +205,6 @@ for iso3, iso2 in iso_mapping.items():
 mask = ~world['adm0_a3'].isin(iso_mapping.keys())
 # 仅对未被手动修正的行进行默认截取
 world.loc[mask, 'iso_a2'] = world.loc[mask, 'adm0_a3'].str.slice(0, 2)
-
 
 # -----------------------------------------------------------
 # 合并与绘图
@@ -248,11 +251,11 @@ html_content = f"""
 <body>
     <h1>2026大年鸟种数</h1>
     <p>Author: Jiahua | Auto update: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
-    
+
     <div class="plot-container">
         <img src="data:image/png;base64,{img1_base64}" alt="China Map">
     </div>
-    
+
     <div class="plot-container">
         <img src="data:image/png;base64,{img2_base64}" alt="World Map">
     </div>
