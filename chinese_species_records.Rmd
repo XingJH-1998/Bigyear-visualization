@@ -1,17 +1,21 @@
 ---
-title: "2026大年中国鸟种数"
+title: "2026大年鸟种数"
 author: "Jiahua"
 output: html_document
 ---
-
+<br><br>
+<br><br>
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 library(dplyr)
 library(data.table)
 library(sf)
 library(ggplot2)
+library(rnaturalearth)
+library(rnaturalearthdata)
+showtext::showtext_auto()
 
-ebird_taxonomy <- read.csv("ebird_taxonomy.csv")
-df <- read.csv("MyEBirdData.csv")
+ebird_taxonomy <- read.csv("data/ebird_taxonomy.csv")
+df <- read.csv("data/MyEBirdData.csv")
 map_geo <- sf::st_read("shapefile/china_map/中国省级地图GS（2019）1719号.geojson",
                        quiet = TRUE)
 jdx <- sf::st_read("shapefile/china_map/九段线GS（2019）1719号.geojson",
@@ -59,8 +63,8 @@ df.china.record <- df %>%
 
 map_geo <- map_geo %>%
   left_join(df.china.record)
-hainan.species <- map_geo$n_species[map_geo$CNAME=="海南省"]
-ggplot()+
+
+p <- ggplot()+
   geom_sf(data=map_geo, aes(fill=n_species), color = "grey",
           linewidth = 0.3)+
   geom_sf(data=jdx, linewidth = 0.1, color = "black")+
@@ -76,13 +80,67 @@ ggplot()+
                size = 3,
                color = "black") +
   coord_sf() +
-  theme_minimal(base_family = "STHeiti") +
+  theme_minimal(base_family = "STHeiti")+
   theme(
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
     axis.text = element_blank(),
     axis.title = element_blank(),
-    legend.position = "right"
+    plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
+    legend.position = "bottom",
+    legend.key.width = unit(2, "cm")
   )+
-  labs(fill="物种数")
+  labs(fill="鸟种数", title = "中国鸟种数")
+p  
+```
+<br><br>
+<br><br>
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+world_map <- ne_countries(scale = "medium", returnclass = "sf") %>%
+  select(iso_a2_eh, geometry) %>%
+  filter(!is.na(iso_a2_eh)) %>%
+  mutate(iso_a2=iso_a2_eh)
+world_map$iso_a2[world_map$iso_a2=="TW"] <- "CN"
+
+df.world.record <- df %>% 
+  group_by(Country_code) %>%
+  summarise(n_species=n_distinct(Scientific.Name))
+
+df.world.record <- world_map %>%
+  left_join(df.world.record, by=c("iso_a2"="Country_code"))
+
+q <- ggplot(df.world.record) +
+  # 绘制地图
+  geom_sf(aes(fill = n_species), color = "white", size = 0.05) +
+  
+  # 设置颜色映射
+  # na.value = "grey90" 是关键：没有数据的国家显示浅灰
+  scale_fill_gradient(
+    low = "#fde0dd",     # 很浅的红（接近白）
+    high = "#a50f15",    # 深红
+    na.value = "grey90",
+    name = "鸟种数"
+  ) +
+  guides(
+    fill = guide_colorbar(
+      title.position = "top",
+      title.hjust = 0.5
+    )
+  )+
+  # 设置地图投影 (可选，Mollweide投影适合世界地图)
+  #coord_sf(crs = "+proj=moll") +
+  
+  theme_void() + # 去掉坐标轴和背景
+  theme(
+    legend.position = "bottom",
+    legend.key.width = unit(2, "cm"),
+    plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 15, hjust = 0.5, color = "grey50")
+  ) +
+  
+  # 动态标签
+  labs(
+    title = "世界鸟种数"
+  )
+q
 ```
