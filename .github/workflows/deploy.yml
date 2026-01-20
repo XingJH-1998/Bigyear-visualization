@@ -1,0 +1,48 @@
+name: 自动运行R并更新网页
+
+# 触发机制：当 main 分支有 push 动作时（比如你上传了新数据）
+on:
+  push:
+    branches: [ main ]
+
+# 给予机器人写权限，以便发布网页
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 安装 R 环境
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+
+      # 3. 安装 Pandoc (转换 Rmd 必须)
+      - name: Setup Pandoc
+        uses: r-lib/actions/setup-pandoc@v2
+
+      # 4. 安装 R 包 (⚠️重要：这里需要根据你的实际情况修改)
+      - name: Install R packages
+        run: |
+          Rscript -e 'install.packages(c("rmarkdown", "knitr", "ggplot2", "data.table", "dplyr", "sf", "rnaturalearth", "rnaturalearthdata", "showtext"))'
+
+      # 5. 运行 RMarkdown
+      # 因为你的文件就在根目录且叫 index.Rmd，所以直接 render 即可
+      # 它会自动在根目录生成 index.html
+      - name: Render Rmarkdown
+        run: |
+          Rscript -e 'rmarkdown::render("index.Rmd")'
+
+      # 6. 发布到 GitHub Pages
+      # 我们把生成的文件推送到 gh-pages 分支，保持主分支干净
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: .
