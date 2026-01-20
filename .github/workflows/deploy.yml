@@ -3,6 +3,11 @@ name: 自动运行Python并更新网页
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'data/**'          # 只有 data 文件夹里的东西变了才运行
+      - 'script/**'        # 或者 script 文件夹(如果你有的话)变了
+      - 'main.py'          # 或者 main.py 变了
+      - '.github/workflows/deploy.yml' # 或者这个配置文件本身变了
 
 permissions:
   contents: write
