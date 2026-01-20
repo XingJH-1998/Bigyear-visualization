@@ -234,6 +234,11 @@ plt.close(fig2)
 # ==========================================
 # 4. 生成 HTML 文件
 # ==========================================
+
+tz_cn = datetime.timezone(datetime.timedelta(hours=8))
+now_cn = datetime.datetime.now(tz_cn)
+time_str = now_cn.strftime('%Y-%m-%d %H:%M (GMT+8)')
+
 html_content = f"""
 <!DOCTYPE html>
 <html>
@@ -250,7 +255,7 @@ html_content = f"""
 </head>
 <body>
     <h1>2026大年鸟种数</h1>
-    <p>Author: Jiahua | Auto update: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+    <p>Author: Jiahua | Auto update: {time_str}</p>
 
     <div class="plot-container">
         <img src="data:image/png;base64,{img1_base64}" alt="China Map">
