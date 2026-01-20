@@ -61,7 +61,7 @@ map_geo <- map_geo %>%
   left_join(df.china.record)
 hainan.species <- map_geo$n_species[map_geo$CNAME=="海南省"]
 ggplot()+
-  geom_sf(data=map_geo, aes(fill=n_species), color = "#EEEEEE",
+  geom_sf(data=map_geo, aes(fill=n_species), color = "grey",
           linewidth = 0.3)+
   geom_sf(data=jdx, linewidth = 0.1, color = "black")+
   scale_fill_gradientn(
