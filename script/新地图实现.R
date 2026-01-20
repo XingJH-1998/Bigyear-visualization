@@ -101,13 +101,12 @@ df_prov <- all_counts %>%
   arrange(match(province, provinces_all))
 
 species_status <- ebird_taxonomy %>%
-  select(species_code, scientific_name, category, report_as)
+  select(SPECIES_CODE, SCI_NAME, CATEGORY, REPORT_AS)
 df_tw <- read.csv("/Users/tangerine/Downloads/MyEBirdData.csv") %>%
   mutate(Countrycode= str_sub(State.Province,1,2)) %>%
   filter(Countrycode=="TW") %>%
-  left_join(species_status, by = c("Scientific.Name" = "scientific_name")) %>%
-  select(Scientific.Name, species_code, category, report_as) 
-df_prov[df_prov$province=="台湾省",]$species <- length(unique(df_tw$Scientific.Name))
+  left_join(species_status, by = c("Scientific.Name" = "SCI_NAME"))
+df_prov[df_prov$province=="台湾省",]$species <- length(unique(df_tw$SPECIES_CODE))
 
 # bird_cnt <- 800  # 设置图注上限
 max_val <- max(df_prov$species, na.rm = TRUE)
@@ -134,7 +133,7 @@ p <- ggplot() +
           aes(fill = species),
           color = "#EEEEEE",
           linewidth = 0.3) +
-  geom_sf(data = jdx, linewidth = 0.25, color = "black") +
+  geom_sf(data = jdx, linewidth = 0.1, color = "black", fill=map_joined$species[map_joined$CNAME=="海南省"]) +
   scale_fill_gradientn(
     colours = c("white", "#ADD8E6", "#4169E1"),
     values = scales::rescale(c(0, 1, max_val)),  
@@ -154,5 +153,7 @@ p <- ggplot() +
     axis.text = element_blank(),
     axis.title = element_blank(),
     legend.position = "right"
-  )
+  )+
+  labs(fill="物种数")
 p
+

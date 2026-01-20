@@ -7,6 +7,7 @@ library(stringr)
 library(auk)
 library(ggpubr)
 library(tidyr)
+library(data.table)
 showtext::showtext_auto()
 
 getChecklistObserver_safe <- function(submissionID) {
@@ -37,6 +38,9 @@ getChecklistObserver_safe <- function(submissionID) {
 
 
 df <- read.csv("MyEBirdData.csv")
+df <- df %>%
+  mutate(Year=year(Date)) %>%
+  filter(Year==2025)
 subid <- readRDS("matched_submissionID.rda")
 subid_new <- df %>% distinct(ID = Submission.ID) %>%
   filter(!(ID %in% subid$ID))
