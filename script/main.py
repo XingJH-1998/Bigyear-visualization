@@ -5,11 +5,23 @@ import matplotlib.colors as mcolors
 from io import BytesIO
 import base64
 import datetime
+import platform
 
-# --- 配置绘图字体 (适配 GitHub Actions 的 Ubuntu 环境) ---
-plt.rcParams['font.family'] = ['sans-serif']
-# 优先尝试 Noto Sans CJK (Linux), 其次 SimHei (Windows), 最后 fallback
-plt.rcParams['font.sans-serif'] = ['Noto Sans CJK JP', 'Noto Sans CJK SC', 'SimHei', 'Arial']
+# ==========================================
+# 0. 字体配置 (解决中文乱码核心代码)
+# ==========================================
+system_name = platform.system()
+
+if system_name == "Darwin":  # macOS (你的本地电脑)
+    # macOS 优先使用系统自带的 "Arial Unicode MS" 或 "PingFang SC"
+    plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'PingFang SC', 'Heiti TC', 'sans-serif']
+elif system_name == "Linux": # GitHub Actions (服务器)
+    # Ubuntu 服务器优先使用 Noto Sans CJK
+    plt.rcParams['font.sans-serif'] = ['Noto Sans CJK JP', 'Noto Sans CJK SC', 'WenQuanYi Micro Hei', 'sans-serif']
+else: # Windows
+    plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'sans-serif']
+
+# 解决负号显示为方块的问题
 plt.rcParams['axes.unicode_minus'] = False
 
 # ==========================================
@@ -137,44 +149,73 @@ plt.close(fig1)
 # ==========================================
 print("正在生成世界地图...")
 
-# 使用 geopandas 自带的世界地图 (为了速度，不下载 rnaturalearth)
-world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
-# 简单修正 ISO 代码以匹配 (R代码里 TW -> CN，这里我们尽量保留原始 ISO_A2)
-# 注意：naturalearth_lowres 的 iso_a2 有些可能不全，这里做个简单映射
-world['iso_a2'] = world['iso_a3'].str.slice(0, 2) # 简易处理，实际可能需要更严谨的对应
+try:
+    world = gpd.read_file("shapefile/world_map.zip")
+except Exception as e:
+    print(f"❌ 无法读取地图: {e}")
+    exit(1)
 
-# 统计世界数据
-df_world = df.groupby('Country_code')['Scientific.Name'].nunique().reset_index()
+world.columns = world.columns.str.lower()
+
+# -----------------------------------------------------------
+# 第一步：修改【数据】(Data)
+# 逻辑：在统计之前，把 TW, HK, MO 的代码全部改成 CN
+# 这样 groupby 统计时，会自动把这些地区的鸟种合并，且去除重复
+# -----------------------------------------------------------
+df_for_world = df.copy() # 创建副本，不影响前面的中国分省地图
+
+# 将 台湾(TW), 香港(HK), 澳门(MO) 的代码全部统一为 CN
+target_areas = ['TW', 'HK', 'MO']
+df_for_world.loc[df_for_world['Country_code'].isin(target_areas), 'Country_code'] = 'CN'
+
+# 现在统计世界数据，CN 就会包含大陆+港澳台的所有去重鸟种
+df_world = df_for_world.groupby('Country_code')['Scientific.Name'].nunique().reset_index()
 df_world.columns = ['iso_a2', 'n_species']
 
-# 修正台湾归属 (对应你的 R 逻辑: TW -> CN)
-# 在 Python 这里的逻辑是：如果数据里有 TW，把它加到 CN 上
-if 'TW' in df_world['iso_a2'].values:
-    tw_count = df_world.loc[df_world['iso_a2'] == 'TW', 'n_species'].values[0]
-    # 检查是否有 CN
-    if 'CN' in df_world['iso_a2'].values:
-        df_world.loc[df_world['iso_a2'] == 'CN', 'n_species'] += 0 # 这里简单处理，种数不能直接相加因为可能有重叠，但R代码似乎是分开 join 的。
-        # 你的 R 代码逻辑：world_map$iso_a2[world_map$iso_a2=="TW"] <- "CN"
-        # 这意味着地图上的 TW 区域会被视为 CN，并填上 CN 的数据颜色。
-        pass
-    
-# 合并数据
-# 注意：geopandas自带数据的 iso_a2 对中国是 CN，对台湾是 TW。
-# 为了复刻效果：我们将地图上的 TW 几何体的 iso_a2 改为 CN，这样 merge 时它会匹配到 CN 的数据
-world.loc[world['name'] == "Taiwan", 'iso_a2'] = "CN"
+#print("CN (含港澳台) 总种数:", df_world[df_world['iso_a2'] == 'CN']['n_species'].values)
 
+
+# -----------------------------------------------------------
+# 第二步：修改【地图】(Map)
+# 逻辑：让地图上的 CHN(大陆), TWN(台湾) 都去匹配 CN 这个数据
+# -----------------------------------------------------------
+
+# 1. 优先使用 adm0_a3 (三位代码) 来确定国家
+if 'iso_a2' not in world.columns:
+    world['iso_a2'] = ''
+
+# 2. 建立映射关系：把地图上的哪些块，视为 "CN"
+# 这里的 Key 是地图自带的3位代码，Value 是你要匹配的数据代码
+iso_mapping = {
+    'CHN': 'CN',  # 中国大陆 -> 读 CN 的数据
+    'TWN': 'CN',  # 台湾 -> 读 CN 的数据 (关键修改！)
+    'HKG': 'CN',  # 香港 -> 读 CN 的数据
+    'MAC': 'CN'   # 澳门 -> 读 CN 的数据
+}
+
+# 3. 应用映射
+for iso3, iso2 in iso_mapping.items():
+    world.loc[world['adm0_a3'] == iso3, 'iso_a2'] = iso2
+
+# 4. 其他国家正常处理 (防瑞士陷阱)
+mask = ~world['adm0_a3'].isin(iso_mapping.keys())
+# 仅对未被手动修正的行进行默认截取
+world.loc[mask, 'iso_a2'] = world.loc[mask, 'adm0_a3'].str.slice(0, 2)
+
+
+# -----------------------------------------------------------
+# 合并与绘图
+# -----------------------------------------------------------
 world_data = world.merge(df_world, on='iso_a2', how='left')
 
-# --- 绘图 ---
 fig2, ax2 = plt.subplots(figsize=(12, 6))
 
-# 自定义红色渐变 (仿照 R: #fde0dd -> #a50f15)
 colors_red = ["#fde0dd", "#a50f15"]
 cmap_red = mcolors.LinearSegmentedColormap.from_list("custom_red", colors_red)
 
 world_data.plot(column='n_species', ax=ax2, cmap=cmap_red,
                 edgecolor='white', linewidth=0.05,
-                missing_kwds={'color': 'lightgrey'}, # NA 值颜色
+                missing_kwds={'color': 'lightgrey'},
                 legend=True,
                 legend_kwds={'label': "鸟种数", 'orientation': "horizontal", 'shrink': 0.5})
 
@@ -206,7 +247,7 @@ html_content = f"""
 </head>
 <body>
     <h1>2026大年鸟种数</h1>
-    <p>Author: Jiahua | Update: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+    <p>Author: Jiahua | Auto update: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
     
     <div class="plot-container">
         <img src="data:image/png;base64,{img1_base64}" alt="China Map">
