@@ -17,18 +17,24 @@ plt.rcParams['axes.unicode_minus'] = False
 # ==========================================
 print("正在读取数据...")
 
-# 读取分类体系和观测数据
 try:
     ebird_taxonomy = pd.read_csv("data/ebird_taxonomy.csv")
     df = pd.read_csv("data/MyEBirdData.csv")
+
+    # 【新增代码】模拟 R 的列名处理：把空格和斜杠变成点
+    df.columns = df.columns.str.replace(' ', '.').str.replace('/', '.')
     
-    # 读取地理数据 (保持和你 R 代码路径一致)
+    # 打印一下列名，确保改对了（调试用）
+    print("Columns:", df.columns.tolist()) 
+
+    # 读取地理数据
     map_geo = gpd.read_file("shapefile/china_map/中国省级地图GS（2019）1719号.geojson")
     jdx = gpd.read_file("shapefile/china_map/九段线GS（2019）1719号.geojson")
 except Exception as e:
     print(f"读取文件失败，请检查路径: {e}")
     exit(1)
 
+# 下面继续原本的代码...
 # 处理日期和筛选年份
 df['Date'] = pd.to_datetime(df['Date'])
 df['Year'] = df['Date'].dt.year
