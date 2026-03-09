@@ -74,7 +74,7 @@ valid_categories = ["domestic", "issf", "species"]
 df = df[df['CATEGORY'].isin(valid_categories)]
 
 # 处理省份和地区代码
-df['Country_code'] = df['State.Province'].str.slice(0, 2)
+df['Country_code'] = df['State.Province'].str[:2]
 
 
 def clean_province(prov):
@@ -159,67 +159,83 @@ except Exception as e:
     print(f"❌ 无法读取地图: {e}")
     exit(1)
 
+# 统一列名
 world.columns = world.columns.str.lower()
 
 # -----------------------------------------------------------
-# 第一步：修改【数据】(Data)
-# 逻辑：在统计之前，把 TW, HK, MO 的代码全部改成 CN
-# 这样 groupby 统计时，会自动把这些地区的鸟种合并，且去除重复
-# -----------------------------------------------------------
-df_for_world = df.copy()  # 创建副本，不影响前面的中国分省地图
-
-# 将 台湾(TW), 香港(HK), 澳门(MO) 的代码全部统一为 CN
-target_areas = ['TW', 'HK', 'MO']
-df_for_world.loc[df_for_world['Country_code'].isin(target_areas), 'Country_code'] = 'CN'
-
-# 现在统计世界数据，CN 就会包含大陆+港澳台的所有去重鸟种
-df_world = df_for_world.groupby('Country_code')['Scientific.Name'].nunique().reset_index()
-df_world.columns = ['iso_a2', 'n_species']
-
-# print("CN (含港澳台) 总种数:", df_world[df_world['iso_a2'] == 'CN']['n_species'].values)
-
-
-# -----------------------------------------------------------
-# 第二步：修改【地图】(Map)
-# 逻辑：让地图上的 CHN(大陆), TWN(台湾) 都去匹配 CN 这个数据
+# 第一步：准备 eBird 数据
 # -----------------------------------------------------------
 
-# 1. 优先使用 adm0_a3 (三位代码) 来确定国家
-# 如果地图自带 iso_a2 就直接用
-if 'iso_a2' not in world.columns:
-    raise ValueError("world shapefile 没有 iso_a2 字段")
+df_for_world = df.copy()
 
-# 2. 建立映射关系：把地图上的哪些块，视为 "CN"
-# 这里的 Key 是地图自带的3位代码，Value 是你要匹配的数据代码
-iso_mapping = {
-    'CHN': 'CN',  # 中国大陆 -> 读 CN 的数据
-    'TWN': 'CN',  # 台湾 -> 读 CN 的数据 (关键修改！)
-    'HKG': 'CN',  # 香港 -> 读 CN 的数据
-    'MAC': 'CN'  # 澳门 -> 读 CN 的数据
-}
+# 港澳台合并到中国
+df_for_world.loc[
+    df_for_world['Country_code'].isin(['HK', 'MO', 'TW']),
+    'Country_code'
+] = 'CN'
 
-# 3. 应用映射
-for iso3, iso2 in iso_mapping.items():
-    world.loc[world['adm0_a3'] == iso3, 'iso_a2'] = iso2
+# 统计每个国家的鸟种数
+df_world = (
+    df_for_world
+    .groupby('Country_code')['Scientific.Name']
+    .nunique()
+    .reset_index()
+)
 
-# 4. 其他国家正常处理 (防瑞士陷阱)
-mask = ~world['adm0_a3'].isin(iso_mapping.keys())
+df_world.columns = ['iso_a2_eh', 'n_species']
+
 
 # -----------------------------------------------------------
-# 合并与绘图
+# 第二步：修正世界地图国家代码
 # -----------------------------------------------------------
-world_data = world.merge(df_world, on='iso_a2', how='left')
+
+# Natural Earth 的国家代码字段
+if 'iso_a2_eh' not in world.columns:
+    print("❌ world map 没有 iso_a2_eh 字段")
+    exit(1)
+
+# 港澳台也统一为 CN
+world['iso_a2_eh'] = world['iso_a2_eh'].replace({
+    'TW': 'CN',
+    'HK': 'CN',
+    'MO': 'CN'
+})
+
+
+# -----------------------------------------------------------
+# 第三步：合并数据
+# -----------------------------------------------------------
+
+world_data = world.merge(
+    df_world,
+    on='iso_a2_eh',
+    how='left'
+)
+
+
+# -----------------------------------------------------------
+# 第四步：绘图
+# -----------------------------------------------------------
 
 fig2, ax2 = plt.subplots(figsize=(12, 6))
 
 colors_red = ["#fde0dd", "#a50f15"]
 cmap_red = mcolors.LinearSegmentedColormap.from_list("custom_red", colors_red)
 
-world_data.plot(column='n_species', ax=ax2, cmap=cmap_red,
-                edgecolor='white', linewidth=0.05,
-                missing_kwds={'color': 'lightgrey'},
-                legend=True,
-                legend_kwds={'label': "鸟种数", 'orientation': "horizontal", 'shrink': 0.5})
+world_data.plot(
+    column='n_species',
+    ax=ax2,
+    cmap=cmap_red,
+    edgecolor='white',
+    linewidth=0.05,
+    missing_kwds={'color': 'lightgrey'},
+    legend=True,
+    legend_kwds={
+        'label': "鸟种数",
+        'orientation': "horizontal",
+        'shrink': 0.5
+    }
+)
 
 ax2.set_title("世界鸟种数", fontsize=16, fontweight='bold')
 ax2.set_axis_off()
