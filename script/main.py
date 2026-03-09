@@ -30,8 +30,8 @@ plt.rcParams['axes.unicode_minus'] = False
 print("正在读取数据...")
 
 try:
-    ebird_taxonomy = pd.read_csv("data/ebird_taxonomy.csv")
-    df = pd.read_csv("data/MyEBirdData.csv")
+    ebird_taxonomy = pd.read_csv("../data/ebird_taxonomy.csv")
+    df = pd.read_csv("../data/MyEBirdData.csv")
 
     # 【新增代码】模拟 R 的列名处理：把空格和斜杠变成点
     df.columns = df.columns.str.replace(' ', '.').str.replace('/', '.')
@@ -40,8 +40,8 @@ try:
     print("Columns:", df.columns.tolist())
 
     # 读取地理数据
-    map_geo = gpd.read_file("shapefile/china_map/中国省级地图GS（2019）1719号.geojson")
-    jdx = gpd.read_file("shapefile/china_map/九段线GS（2019）1719号.geojson")
+    map_geo = gpd.read_file("../shapefile/china_map/中国省级地图GS（2019）1719号.geojson")
+    jdx = gpd.read_file("../shapefile/china_map/九段线GS（2019）1719号.geojson")
 except Exception as e:
     print(f"读取文件失败，请检查路径: {e}")
     exit(1)
@@ -154,7 +154,7 @@ plt.close(fig1)
 print("正在生成世界地图...")
 
 try:
-    world = gpd.read_file("shapefile/world_map.zip")
+    world = gpd.read_file("../shapefile/world_map.zip")
 except Exception as e:
     print(f"❌ 无法读取地图: {e}")
     exit(1)
@@ -185,8 +185,9 @@ df_world.columns = ['iso_a2', 'n_species']
 # -----------------------------------------------------------
 
 # 1. 优先使用 adm0_a3 (三位代码) 来确定国家
+# 如果地图自带 iso_a2 就直接用
 if 'iso_a2' not in world.columns:
-    world['iso_a2'] = ''
+    raise ValueError("world shapefile 没有 iso_a2 字段")
 
 # 2. 建立映射关系：把地图上的哪些块，视为 "CN"
 # 这里的 Key 是地图自带的3位代码，Value 是你要匹配的数据代码
@@ -203,8 +204,6 @@ for iso3, iso2 in iso_mapping.items():
 
 # 4. 其他国家正常处理 (防瑞士陷阱)
 mask = ~world['adm0_a3'].isin(iso_mapping.keys())
-# 仅对未被手动修正的行进行默认截取
-world.loc[mask, 'iso_a2'] = world.loc[mask, 'adm0_a3'].str.slice(0, 2)
 
 # -----------------------------------------------------------
 # 合并与绘图
