@@ -185,8 +185,9 @@ df_world.columns = ['iso_a2', 'n_species']
 # -----------------------------------------------------------
 
 # 1. 优先使用 adm0_a3 (三位代码) 来确定国家
+# 如果地图自带 iso_a2 就直接用
 if 'iso_a2' not in world.columns:
-    world['iso_a2'] = ''
+    raise ValueError("world shapefile 没有 iso_a2 字段")
 
 # 2. 建立映射关系：把地图上的哪些块，视为 "CN"
 # 这里的 Key 是地图自带的3位代码，Value 是你要匹配的数据代码
@@ -203,8 +204,6 @@ for iso3, iso2 in iso_mapping.items():
 
 # 4. 其他国家正常处理 (防瑞士陷阱)
 mask = ~world['adm0_a3'].isin(iso_mapping.keys())
-# 仅对未被手动修正的行进行默认截取
-world.loc[mask, 'iso_a2'] = world.loc[mask, 'adm0_a3'].str.slice(0, 2)
 
 # -----------------------------------------------------------
 # 合并与绘图
